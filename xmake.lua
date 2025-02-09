@@ -1,3 +1,4 @@
+set_languages("c++23")
 target("pacbot2")
 set_kind("binary")
 add_includedirs("include")
