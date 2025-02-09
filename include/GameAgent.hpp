@@ -8,6 +8,7 @@
 #include "ghost/agent/RedGhostAgent.hpp"
 #include <memory>
 #include <stack>
+#include <queue>
 
 /**
  * @class GameStateAgent
@@ -29,6 +30,7 @@ private:
 
 public:
   GameState gameState;
+  GameAgent(const GameAgent &other);
   GameAgent()
       : ghostAgents{std::make_unique<RedGhostAgent>(),
                     std::make_unique<PinkGhostAgent>(),

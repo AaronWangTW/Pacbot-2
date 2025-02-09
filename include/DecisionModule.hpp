@@ -1,6 +1,7 @@
 #pragma once
 #include "GameAgent.hpp"
 #include "Location.hpp"
+#include <climits>
 
 class DecisionModule {
  public:
@@ -14,4 +15,5 @@ class DecisionModule {
   int _depthLimit;
   int evaluateState(GameAgent& currAgent);
   int deepSearch(int depth, GameAgent& currAgent);
+  std::queue<GameAgent> bfsSearch(int bfsDepth, GameAgent& agent);
 };
