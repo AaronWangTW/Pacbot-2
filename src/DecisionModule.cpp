@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <future>
-#include <queue>
 #include <vector>
-#include <climits>
 
 #include "walls.hpp"
 
@@ -143,7 +141,6 @@ std::queue<GameAgent> DecisionModule::bfsSearch(int bfsDepth, GameAgent& currAge
   return resultQueue;
 }
 
-
 int DecisionModule::deepSearch(int depth, GameAgent& currAgent) {
   if (_agent.gameState.currLives == 0 || depth == _depthLimit ||
       numPellets(_agent.gameState.pelletArr) == 0) {
@@ -173,7 +170,8 @@ int DecisionModule::deepSearch(int depth, GameAgent& currAgent) {
     agent.step(ACTION_TICK, dir[i]);
 
     if (!agent.gameState.currLives < prev_lives) {
-      return evaluateState(currAgent) - depth * 100;  // Return penalty if simulation ends the game.
+      return evaluateState(currAgent) -
+             depth * 100;  // Return penalty if simulation ends the game.
     }
 
     // Perform a recursive deep search and return the result.
@@ -210,34 +208,12 @@ Directions DecisionModule::decide() {
   std::vector<Directions> dir = {NONE, DOWN, UP, RIGHT, LEFT};
   std::vector<int> action_scores(5, -INT_MAX);
 
-  int bfsDepth = 3; // Can change to an input
-
   for(int i = 0; i < 5; i++) {
     if (wallAt(targets[i].first, targets[i].second)) {
       continue;
     }
-
-    GameAgent _agentCopy = this->_agent;
-    _agentCopy.step(ACTION_TICK,dir[i]);
-
-    // Perform BFS up to bfsDepth
-    std::queue<GameAgent> bfsQueue = bfsSearch(bfsDepth,_agentCopy);
-
-    // Perform deep search on each of the bfsQueue
-    std::vector<std::future<int>> futures;
-    while (!bfsQueue.empty()) {
-      GameAgent state = bfsQueue.front();
-      bfsQueue.pop();
-      futures.push_back(std::async(std::launch::async, &DecisionModule::deepSearch, this, bfsDepth, std::ref(state)));
-    }
-
-    int best_score = -999999;
-    for (auto& fut : futures) {
-      best_score = std::max(best_score, fut.get());
-    }
-
-    action_scores[i] = best_score;
-
+    _agent.step(ACTION_TICK,dir[i]);
+    action_scores[i] = deepSearch(0,_agent);
   }
 
   auto max_action =
