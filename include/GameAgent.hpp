@@ -10,6 +10,9 @@
 #include <stack>
 #include <queue>
 
+#include <thread>
+#include <mutex>
+
 /**
  * @class GameStateAgent
  * @brief An agent to play the game
@@ -27,6 +30,10 @@ private:
   std::stack<int> versions;
   std::array<std::unique_ptr<IGhostAgent>, 4> ghostAgents;
   void perform(std::unique_ptr<IDelta> &&action);
+
+  int _depthInterval;
+  std::mutex _mutex;
+  std::vector<std::thread> _threads;
 
 public:
   GameState gameState;

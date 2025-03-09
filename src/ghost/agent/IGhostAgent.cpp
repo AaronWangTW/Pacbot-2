@@ -62,5 +62,15 @@ std::unique_ptr<IDelta> IGhostAgent::move(GameState &state, Ghost &ghost) {
   if (ghost.isSpawning()) {
     return nullptr;
   }
-  return std::make_unique<GhostMoveDelta>(this, )
+  // TODO: not sure if this is the right way 
+  Location newLocation = ghost.location;
+
+  int nextRow = ghost.location.getRow() + ghost.location.getRowDir();
+  int nextCol = ghost.location.getCol() + ghost.location.getColDir();
+
+  newLocation.setRow(nextRow);
+  newLocation.setCol(nextCol);
+
+  return std::make_unique<GhostMoveDelta>(this, newLocation ,ghost.location);
+
 }

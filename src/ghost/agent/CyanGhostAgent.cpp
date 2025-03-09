@@ -14,3 +14,7 @@ CyanGhostAgent::getChaseTarget(const GameState &gameState) const {
 std::pair<int, int> CyanGhostAgent::getScatterTarget() const {
   return {SCATTER_ROW[GhostColors::CYAN], SCATTER_COL[GhostColors::CYAN]};
 }
+
+std::unique_ptr<IGhostAgent> CyanGhostAgent::clone() const {
+  return std::make_unique<CyanGhostAgent>(*this);
+}

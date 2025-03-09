@@ -39,5 +39,6 @@ public:
    */
   std::unique_ptr<IDelta> move(GameState &gameState, Ghost &ghost);
   Directions plannedDirection;
+  Location currentLocation;
   virtual std::unique_ptr<IGhostAgent> clone() const = 0;
 };

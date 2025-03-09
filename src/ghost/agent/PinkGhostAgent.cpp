@@ -11,3 +11,7 @@ PinkGhostAgent::getChaseTarget(const GameState &gameState) const {
 std::pair<int, int> PinkGhostAgent::getScatterTarget() const {
   return {SCATTER_ROW[GhostColors::PINK], SCATTER_COL[GhostColors::PINK]};
 }
+
+std::unique_ptr<IGhostAgent> PinkGhostAgent::clone() const {
+  return std::make_unique<PinkGhostAgent>(*this);
+}

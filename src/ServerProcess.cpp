@@ -4,7 +4,6 @@
 #include <ixwebsocket/IXWebSocketInitResult.h>
 #include <fstream>
 #include <memory>
-#include <format>
 #include <stdio.h>
 #include <cstring>
 
@@ -12,10 +11,10 @@ ServerProcess::ServerProcess() {
     // Initialize the websocket system
     ix::initNetSystem();
 
-    // Create the address
-    std::string address = std::format("ws://{}:{}/", "localhost", "1234");
+    address_buffer = new char[100];
+    sprintf(address_buffer, "ws://%s:%d/", "localhost", 1234);
 
-    printf("Connecting to %s\n", address);
+    printf("Connecting to %s\n", address_buffer);
 
     // Create the websocket and configure parameters
     socket = std::make_unique<ix::WebSocket>();
@@ -47,8 +46,7 @@ ServerProcess::ServerProcess() {
     // Attempt to connect to the server
     ix::WebSocketInitResult result = socket->connect(10);
     if (not result.success) {
-        spdlog::error("Failed to connect to server");
-        spdlog::trace(result.errorStr);
+        printf("Error: %s\n", result.error.c_str());
     }
 }
 
