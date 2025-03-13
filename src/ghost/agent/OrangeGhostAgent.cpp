@@ -22,6 +22,6 @@ std::pair<int, int> OrangeGhostAgent::getScatterTarget() const {
   return {SCATTER_ROW[GhostColors::ORANGE], SCATTER_COL[GhostColors::ORANGE]};
 }
 
-std::unique_ptr<IGhostAgent> OrangeGhostAgent::clone() const {
-  return std::make_unique<OrangeGhostAgent>(*this);
+IGhostAgent* OrangeGhostAgent::clone() const { 
+  return new OrangeGhostAgent(*this); 
 }

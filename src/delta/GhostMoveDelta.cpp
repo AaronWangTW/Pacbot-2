@@ -8,6 +8,6 @@ void GhostMoveDelta::undo() const {
   ghostAgent->currentLocation = previousLocation;
 }
 
-std::unique_ptr<IDelta> GhostMoveDelta::clone() const {
-  return std::make_unique<GhostMoveDelta>(*this);
+IDelta* GhostMoveDelta::clone() const {
+  return new GhostMoveDelta(*this);
 }

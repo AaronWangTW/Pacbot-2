@@ -40,7 +40,7 @@ void GameAgent::step(int numTicks, Directions pacmanDirection) {
       } else {
         // Generate the deltas associated with actions
         for (int i = 0; i < ghostAgents.size(); i++) {
-          std::unique_ptr<IGhostAgent> &ghostAgent = ghostAgents[i];
+          IGhostAgent *ghostAgent = ghostAgents[i];
           Ghost &ghost = gameState.ghosts[i];
           perform(ghostAgent->move(gameState, ghost));
         }
@@ -68,7 +68,7 @@ void GameAgent::undo() {
     // While not at the last version
     while (deltas.size() > lastVersion) {
       // Undoes the last delta
-      std::unique_ptr<IDelta> &lastDelta = deltas.top();
+      IDelta* lastDelta = deltas.top();
       lastDelta->undo();
       deltas.pop();
     }
@@ -76,7 +76,7 @@ void GameAgent::undo() {
   }
 }
 
-void GameAgent::perform(std::unique_ptr<IDelta> &&delta) {
+void GameAgent::perform(IDelta* delta) {
   if (delta) {
     delta->perform();
     deltas.push(std::move(delta));
@@ -92,23 +92,25 @@ GameAgent &GameAgent::operator=(const GameAgent &other) {
   if (this == &other) return *this;
 
   this->gameState = other.gameState;
-  std::stack<std::unique_ptr<IDelta>> d_stack = other.deltas;
-  std::vector<std::unique_ptr<IDelta>> new_deltas;
+  std::stack<IDelta*> d_stack = other.deltas;
+  std::vector<IDelta*> new_deltas;
+
   while(!d_stack.empty()) {
-    std::unique_ptr<IDelta>& old_d = d_stack.top();
-    std::unique_ptr<IDelta> new_d = std::make_unique<IDelta>(*(old_d.get()));
+    IDelta* old_d = d_stack.top();
+    // std::unique_ptr<IDelta> new_d = std::make_unique<IDelta>(*(old_d.get()));
     d_stack.pop();
-    new_deltas.push_back(new_d);
+    new_deltas.push_back(old_d->clone());
+    // new_deltas.push_back(new_d);
   }
   while(!(this->deltas.empty())) {
-    this->deltas.top().reset();
+    delete this->deltas.top();
     this->deltas.pop();
   }
   for(unsigned int i = new_deltas.size() - 1; i >= 0; i--) {
-    this->deltas.push(std::move(new_deltas[i]));
+    this->deltas.push(new_deltas[i]);
   }
   for(unsigned int i = 0; i < 4; i++) {
-    this->ghostAgents[i].reset();
+    delete this->ghostAgents[i];
     this->ghostAgents[i] = other.ghostAgents[i]->clone();
   }
   return *this;

@@ -8,7 +8,7 @@
 #include <cmath>
 #include <limits>
 
-std::unique_ptr<IDelta> IGhostAgent::guessMove(const GameState &gameState,
+IDelta* IGhostAgent::guessMove(const GameState &gameState,
                                                const Ghost &ghost) {
   // Calculate the next position (Note that this is recalculated when getting
   // the target)
@@ -55,10 +55,10 @@ std::unique_ptr<IDelta> IGhostAgent::guessMove(const GameState &gameState,
 
   // Check to see if the ghost should be running away
   Directions newPlan = ghost.isFreightened() ? maxDirection : minDirection;
-  return std::make_unique<GhostPlanDelta>(this, newPlan, plannedDirection);
+  return new GhostPlanDelta(this, newPlan, plannedDirection);
 }
 
-std::unique_ptr<IDelta> IGhostAgent::move(GameState &state, Ghost &ghost) {
+IDelta* IGhostAgent::move(GameState &state, Ghost &ghost) {
   if (ghost.isSpawning()) {
     return nullptr;
   }
@@ -71,6 +71,6 @@ std::unique_ptr<IDelta> IGhostAgent::move(GameState &state, Ghost &ghost) {
   newLocation.setRow(nextRow);
   newLocation.setCol(nextCol);
 
-  return std::make_unique<GhostMoveDelta>(this, newLocation ,ghost.location);
+  return new GhostMoveDelta(this, newLocation ,ghost.location);
 
 }

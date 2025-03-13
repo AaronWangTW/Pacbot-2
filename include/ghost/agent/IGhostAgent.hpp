@@ -26,7 +26,7 @@ public:
    * @param gameState The game state
    * @return The delta for changing its planned direction
    */
-  std::unique_ptr<IDelta> guessMove(const GameState &gameState,
+  IDelta* guessMove(const GameState &gameState,
                                     const Ghost &ghost);
 
   virtual ~IGhostAgent() = default;
@@ -37,8 +37,8 @@ public:
    * @param ghost The ghost to act upon
    * @return The delta for moving
    */
-  std::unique_ptr<IDelta> move(GameState &gameState, Ghost &ghost);
+  IDelta* move(GameState &gameState, Ghost &ghost);
   Directions plannedDirection;
   Location currentLocation;
-  virtual std::unique_ptr<IGhostAgent> clone() const = 0;
+  virtual IGhostAgent* clone() const = 0;
 };

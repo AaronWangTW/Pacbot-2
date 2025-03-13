@@ -16,9 +16,9 @@ private:
 public:
   GhostPlanDelta(IGhostAgent *ghostAgent, Directions newDirection,
                  Directions oldDirection)
-      : ghostAgent{ghostAgent}, newDirection{newDirection},
-        oldDirection{oldDirection} {}
+      : ghostAgent(ghostAgent), newDirection(newDirection),
+        oldDirection(oldDirection) {}
   void perform() const override;
   void undo() const override;
-  std::unique_ptr<IDelta> clone() const override;
+  IDelta* clone() const override;
 };
