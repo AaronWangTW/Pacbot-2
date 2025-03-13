@@ -8,11 +8,12 @@
  * @brief A process that sends the location data to the server
  * 
  */
-class ServerProcess:{
+class ServerProcess{
 private:
     GameState gs;
     std::unique_ptr<ix::WebSocket> socket;
     DecisionModule dm;
+    char* address_buffer;
 
 public:
     ServerProcess();

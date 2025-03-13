@@ -3,6 +3,7 @@
 #include <ixwebsocket/IXNetSystem.h>
 #include <ixwebsocket/IXWebSocketInitResult.h>
 #include <fstream>
+#include <iostream>
 #include <memory>
 #include <stdio.h>
 #include <cstring>
@@ -18,15 +19,16 @@ ServerProcess::ServerProcess() {
 
     // Create the websocket and configure parameters
     socket = std::make_unique<ix::WebSocket>();
-    socket->setUrl(address);
+    socket->setUrl(address_buffer);
     socket->setPingInterval(45);
 
     socket->setOnMessageCallback([](const ix::WebSocketMessagePtr& msg)
         {
             if (msg->type == ix::WebSocketMessageType::Message)
             {
-                char buffer[strlen(msg->str)];
-                strcpy(buffer,msg->str);
+                std::string str = msg->str;
+                char buffer[str.size()];
+                strcpy(buffer, str.c_str());
                 gs = *(GameState*)buffer;
             }
             else if (msg->type == ix::WebSocketMessageType::Open)
@@ -46,7 +48,7 @@ ServerProcess::ServerProcess() {
     // Attempt to connect to the server
     ix::WebSocketInitResult result = socket->connect(10);
     if (not result.success) {
-        printf("Error: %s\n", result.error.c_str());
+        printf("Error: %s\n", result.errorStr.c_str());
     }
 }
 
@@ -87,7 +89,7 @@ void ServerProcess::run() {
         }
 
         // Send the position data to the server
-        socket->sendBinary(data);
+        socket->sendBinary(&data);
     }
 
     // Stop the websocket
