@@ -6,6 +6,10 @@
 #include <cmath>
 #include <limits>
 
+std::pair<int, int> IGhostAgent::getScatterTarget() const {
+    return {0, 0};  // Provide an appropriate default implementation
+}
+
 Directions IGhostAgent::guessMove(const GameState &gameState,
                                                const Ghost &ghost) {
   // Calculate the next position (Note that this is recalculated when getting

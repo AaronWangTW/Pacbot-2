@@ -61,6 +61,13 @@ void GameAgent::update(const GameState &gameState) {
   this->gameState = gameState;
 }
 
+GameAgent::GameAgent(const GameAgent &other) {
+  this->gameState = other.gameState;
+  for(unsigned int i = 0; i < 4; i++) {
+    this->ghostAgents[i] = other.ghostAgents[i]->clone();
+  }
+}
+
 GameAgent &GameAgent::operator=(const GameAgent &other) {
   // Guard self assignment
   if (this == &other) return *this;
