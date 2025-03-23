@@ -13,7 +13,7 @@ ServerProcess::ServerProcess() {
     ix::initNetSystem();
 
     address_buffer = new char[100];
-    sprintf(address_buffer, "ws://%s:%d/", "localhost", 1234);
+    sprintf(address_buffer, "ws://%s:%d", "10.193.155.9", 3002);
 
     printf("Connecting to %s\n", address_buffer);
 
@@ -73,6 +73,7 @@ void ServerProcess::run() {
         ga.update(gs);
         dm.overrideAgent(ga);
         Directions direc = dm.decide();
+        std::cout << direc << std::endl;
 
         switch (direc)
         {

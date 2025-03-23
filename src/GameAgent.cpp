@@ -40,6 +40,7 @@ void GameAgent::step(int numTicks, Directions pacmanDirection) {
         for (int i = 0; i < ghostAgents.size(); i++) {
           IGhostAgent *ghostAgent = ghostAgents[i];
           Ghost &ghost = gameState.ghosts[i];
+          ghostAgent->move(gameState,ghost);
         }
       }
     }

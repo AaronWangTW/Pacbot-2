@@ -143,11 +143,11 @@ std::queue<GameAgent> DecisionModule::bfsSearch(int bfsDepth, GameAgent& currAge
 }
 
 int DecisionModule::deepSearch(int depth, GameAgent& currAgent) {
-  if (_agent.gameState.currLives == 0 || depth == _depthLimit ||
-      numPellets(_agent.gameState.pelletArr) == 0) {
+  if (currAgent.gameState.currLives == 0 || depth == _depthLimit ||
+      numPellets(currAgent.gameState.pelletArr) == 0) {
     return evaluateState(currAgent) - depth * 100;
   }
-  Location p_loc = _agent.gameState.pacmanLoc;
+  Location p_loc = currAgent.gameState.pacmanLoc;
 
   std::vector<std::pair<int, int>> targets = {
       {p_loc.getRow(), p_loc.getCol()},
@@ -166,7 +166,7 @@ int DecisionModule::deepSearch(int depth, GameAgent& currAgent) {
     }
 
     // Simulate the state
-    GameAgent& agent = currAgent;
+    GameAgent agent = currAgent;
     int prev_lives = agent.gameState.currLives;
     agent.step(ACTION_TICK, dir[i]);
 
@@ -176,7 +176,7 @@ int DecisionModule::deepSearch(int depth, GameAgent& currAgent) {
     }
 
     // Perform a recursive deep search and return the result.
-    return this->deepSearch(depth + 1, currAgent);
+    return this->deepSearch(depth + 1, agent);
   };
 
   for (unsigned int i = 0; i < targets.size(); ++i) {
@@ -213,8 +213,9 @@ Directions DecisionModule::decide() {
     if (wallAt(targets[i].first, targets[i].second)) {
       continue;
     }
-    _agent.step(ACTION_TICK,dir[i]);
-    action_scores[i] = deepSearch(0,_agent);
+    GameAgent ga = _agent;
+    ga.step(ACTION_TICK,dir[i]);
+    action_scores[i] = deepSearch(0,ga);
   }
 
   auto max_action =
