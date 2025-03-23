@@ -1,8 +1,5 @@
 #pragma once
 #include "GameState.hpp"
-// #include "delta/IDelta.hpp"
-#include "delta/GhostMoveDelta.hpp"
-#include "delta/GhostPlanDelta.hpp"
 #include "ghost/agent/CyanGhostAgent.hpp"
 #include "ghost/agent/IGhostAgent.hpp"
 #include "ghost/agent/OrangeGhostAgent.hpp"
@@ -22,16 +19,7 @@
  */
 class GameAgent {
 private:
-  /**
-   * @brief Stores the series of deltas that led to this gameState
-   */
-  std::stack<IDelta*> deltas;
-  /**
-   * @brief Stores the indexes of the previous versions in the delta stack
-   */
-  std::stack<int> versions;
   std::array<IGhostAgent*, 4> ghostAgents;
-  void perform(IDelta* action);
 
   int _depthInterval;
   std::mutex _mutex;
@@ -52,10 +40,6 @@ public:
    * @param pacmanDirection The action taken by the pacman in that time
    */
   void step(int numTicks, Directions pacmanDirection);
-  /**
-   * @brief Reverts to the previous game state
-   */
-  void undo();
 
   /**
    * @brief Copies the game state into the internal game state

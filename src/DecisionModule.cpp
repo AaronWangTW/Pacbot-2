@@ -120,7 +120,8 @@ std::queue<GameAgent> DecisionModule::bfsSearch(int bfsDepth, GameAgent& currAge
       }
 
       futures.push_back(std::async(std::launch::async, [&, i]() {
-        GameAgent new_agent = agent;
+        GameAgent new_agent;
+        new_agent = agent;
         int prev_lives = new_agent.gameState.currLives;
         new_agent.step(ACTION_TICK, dir[i]);
 

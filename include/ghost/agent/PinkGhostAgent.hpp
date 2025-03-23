@@ -6,4 +6,5 @@ struct PinkGhostAgent : public IGhostAgent {
   std::pair<int, int> getScatterTarget() const override;
 
   IGhostAgent* clone() const override;
+  ~PinkGhostAgent() override {};
 };

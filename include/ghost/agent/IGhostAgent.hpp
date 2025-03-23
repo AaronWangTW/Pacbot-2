@@ -1,7 +1,6 @@
 #pragma once
 #include "GameState.hpp"
 #include "Location.hpp"
-#include "delta/IDelta.hpp"
 #include "ghost/Ghost.hpp"
 #include "memory"
 
@@ -26,7 +25,7 @@ public:
    * @param gameState The game state
    * @return The delta for changing its planned direction
    */
-  IDelta* guessMove(const GameState &gameState,
+  Directions guessMove(const GameState &gameState,
                                     const Ghost &ghost);
 
   virtual ~IGhostAgent() = default;
@@ -37,7 +36,7 @@ public:
    * @param ghost The ghost to act upon
    * @return The delta for moving
    */
-  IDelta* move(GameState &gameState, Ghost &ghost);
+  void move(GameState &gameState, Ghost &ghost);
   Directions plannedDirection;
   Location currentLocation;
   virtual IGhostAgent* clone() const = 0;

@@ -22,14 +22,19 @@ ServerProcess::ServerProcess() {
     socket->setUrl(address_buffer);
     socket->setPingInterval(45);
 
-    socket->setOnMessageCallback([](const ix::WebSocketMessagePtr& msg)
+    socket->setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg)
         {
             if (msg->type == ix::WebSocketMessageType::Message)
             {
                 std::string str = msg->str;
-                char buffer[str.size()];
-                strcpy(buffer, str.c_str());
-                gs = *(GameState*)buffer;
+                if (str.size() == sizeof(GameState))
+                {
+                    memcpy(&gs, str.c_str(), sizeof(GameState));
+                }
+                else
+                {
+                    std::cerr << "Received data size does not match GameState size!" << std::endl;
+                }
             }
             else if (msg->type == ix::WebSocketMessageType::Open)
             {

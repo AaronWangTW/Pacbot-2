@@ -1,14 +1,12 @@
 #include "ghost/agent/IGhostAgent.hpp"
 #include "GameState.hpp"
 #include "Location.hpp"
-#include "delta/GhostMoveDelta.hpp"
-#include "delta/GhostPlanDelta.hpp"
 #include "ghost/Ghost.hpp"
 #include "walls.hpp"
 #include <cmath>
 #include <limits>
 
-IDelta* IGhostAgent::guessMove(const GameState &gameState,
+Directions IGhostAgent::guessMove(const GameState &gameState,
                                                const Ghost &ghost) {
   // Calculate the next position (Note that this is recalculated when getting
   // the target)
@@ -55,12 +53,12 @@ IDelta* IGhostAgent::guessMove(const GameState &gameState,
 
   // Check to see if the ghost should be running away
   Directions newPlan = ghost.isFreightened() ? maxDirection : minDirection;
-  return new GhostPlanDelta(this, newPlan, plannedDirection);
+  return newPlan;
 }
 
-IDelta* IGhostAgent::move(GameState &state, Ghost &ghost) {
+void IGhostAgent::move(GameState &state, Ghost &ghost) {
   if (ghost.isSpawning()) {
-    return nullptr;
+    return;
   }
   // TODO: not sure if this is the right way 
   Location newLocation = ghost.location;
@@ -70,7 +68,5 @@ IDelta* IGhostAgent::move(GameState &state, Ghost &ghost) {
 
   newLocation.setRow(nextRow);
   newLocation.setCol(nextCol);
-
-  return new GhostMoveDelta(this, newLocation ,ghost.location);
 
 }
