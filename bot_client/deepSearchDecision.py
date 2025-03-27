@@ -1,37 +1,23 @@
-# Asyncio (for concurrency)
 import threading
 import asyncio
-
-import socket
-
 import random
-
-# Game state
-from gameState import *
-
-from variables import *
-
-from operator import itemgetter
-
-from websockets.sync.client import ClientConnection
-
-from serverMessage import ServerMessage
-
-from search import bfs
 import copy
+import time
+from queue import Queue
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+
+from gameState import *
+from variables import *
+from websockets.sync.client import ClientConnection
+from serverMessage import ServerMessage
 from grid import grid
 
-import numpy as np
-
-import time
-from concurrent.futures import Executor, ThreadPoolExecutor
-
-D_MESSAGES: list[bytes] = [b"w", b"a", b"s", b"d", b"."]
+D_MESSAGES = [b"w", b"a", b"s", b"d", b"."]
 TICK_ESTIMATE_BY_LEVEL = [12, int(12 * 1.5), 12 * 2, int(12 * 2.5), 12 * 3]
-
 FOOD_POSITIONS = []
+
 gs = GameState()
-EXECUTOR: Executor = ThreadPoolExecutor()
 
 for col in range(28):
     for row in range(31):
@@ -41,11 +27,11 @@ for col in range(28):
 
 class DeepDecisionModule:
     def __init__(self, state: GameState) -> None:
-        # Game state object to store the game information
         self.state = state
-        # self.sock = socket.socket()
-        # self.sock.connect(("192.168.0.100",1337))
         self.depth = 6
+        self.task_queue = Queue()
+        self.results = {}
+        self.lock = threading.Lock()
 
     def set_connection(self, connection: ClientConnection):
         self.connection = connection
@@ -77,12 +63,12 @@ class DeepDecisionModule:
         self.state.update(messageBytes, True)
 
     def _send_command_message_to_target(self, direction):
-        self.state.queueAction(2,direction)
+        self.state.queueAction(2, direction)
         # self.connection.send(ServerMessage(D_MESSAGES[direction], 4).getBytes())
 
     def _send_stop_command(self):
-        self.state.queueAction(2,Directions.NONE)
-        #self.connection.send(ServerMessage(D_MESSAGES[4], 4).getBytes())
+        self.state.queueAction(2, Directions.NONE)
+        # self.connection.send(ServerMessage(D_MESSAGES[4], 4).getBytes())
 
     def _send_socket_command_to_target(self, p_loc, target):
         direction = self._get_direction(p_loc, target)
@@ -102,176 +88,133 @@ class DeepDecisionModule:
         self.sock.send(b"x")
         print("stay in place")
 
-    # New stuff here
-    def evaluationFunction(self, state: GameState):
-        # curr_time = time.time_ns()
-        """Calculate distance to the nearest food"""
-        min_food_distance = 10000  # larger than 31^2 + 28^2, largest squared distance
-        for col, row in FOOD_POSITIONS:
-            if state.pelletAt(row, col):
-                dist = (row - state.pacmanLoc.row) ** 2 + (
-                    col - state.pacmanLoc.col
-                ) ** 2
-                if dist < min_food_distance:
-                    min_food_distance = dist
+    def evaluationFunction(self, game_state: GameState):
+        pacman_pos = np.array([game_state.pacmanLoc.row, game_state.pacmanLoc.col])
+        score = game_state.currScore
+        pellet_arr = game_state.pelletArr
 
-        """Calculate the distance to nearest ghost"""
-        ghostPositions = [ghost.location for ghost in state.ghosts]
-        scaredTimes = [ghost.frightSteps for ghost in state.ghosts]
-        if len(ghostPositions) > 0:
-            distanceToGhost = [
-                abs(state.pacmanLoc.col - loc.col) + abs(state.pacmanLoc.row - loc.row)
-                for loc in ghostPositions
-            ]
-            min_ghost_distance = distanceToGhost[np.argmin(distanceToGhost)]
-            nearestGhostScaredTime = scaredTimes[np.argmin(distanceToGhost)]
-            # avoid certain death
-            if min_ghost_distance <= 1 and nearestGhostScaredTime == 0:
-                return -999999
-            # eat a scared ghost
-            if min_ghost_distance <= 1 and nearestGhostScaredTime > 0:
-                return 999999
+        # Convert pellet positions to numpy array for fast distance calculations
+        pellet_positions = np.argwhere(pellet_arr)
+        if pellet_positions.size > 0:
+            pellet_distances = np.abs(pellet_positions - pacman_pos).sum(axis=1)
+            min_pellet_dist = np.min(pellet_distances)
+            pellet_score = 10 / (min_pellet_dist + 1)
+        else:
+            pellet_score = 0
 
-        # print(f"eval:{time.time_ns()-curr_time}")
+        # Ghost avoidance & hunting
+        ghost_positions = np.array(
+            [[g.location.row, g.location.col] for g in game_state.ghosts]
+        )
+        ghost_states = np.array([g.isFrightened() for g in game_state.ghosts])
 
-        return state.currScore * 5 - min_food_distance
-
-    def deepSearch(self, depth, state: GameState):
-        # curr_time = time.time_ns()
-
-        if state.currLives == 0 or depth == self.depth or state.numPellets() == 0:
-            return self.evaluationFunction(state) - depth * 100
-        p_loc = state.pacmanLoc
-        targets = [
-            (p_loc.col, p_loc.row),
-            (p_loc.col - 1, p_loc.row),
-            (p_loc.col + 1, p_loc.row),
-            (p_loc.col, p_loc.row + 1),
-            (p_loc.col, p_loc.row - 1),
-        ]
-        directions = [
-            Directions.NONE,
-            Directions.LEFT,
-            Directions.RIGHT,
-            Directions.DOWN,
-            Directions.UP,
-        ]
-        heuristics = []
-
-        def search(i: int) -> None:
-            target_loc = targets[i]
-            if state.wallAt(target_loc[1], target_loc[0]):
-                return
-            sim_state = GameState()
-            sim_state.update(state.serialize(), True)
-            # simulated_state = copy.deepcopy(state)
-            alive = sim_state.simulateAction(
-                TICK_ESTIMATE_BY_LEVEL[state.currLevel - 1], directions[i]
+        if ghost_positions.size > 0:
+            ghost_distances = np.abs(ghost_positions - pacman_pos).sum(axis=1)
+            frightened_ghosts = -500 * ghost_states * (ghost_distances - 5)
+            active_ghosts = (1 - ghost_states) * (
+                -500 / (ghost_distances + 1) * (ghost_distances < 5)
             )
-            heuristics.append(self.deepSearch(depth + 1, sim_state))
 
-        EXECUTOR.map(search, range(len(targets)))
-        if len(heuristics) == 0:
-            return self.evaluationFunction(state) - depth * 100
+            ghost_reward = frightened_ghosts.sum()
+            ghost_penalty = active_ghosts.sum()
+        else:
+            ghost_reward = 0
+            ghost_penalty = 0
 
-        max_val = max(heuristics)
+        # Fruit bonus
+        fruit_bonus = 500 if game_state.fruitAt(*pacman_pos) else 0
 
-        # print(f"deep:{time.time_ns()-curr_time}")
+        return (
+            score
+            + pellet_score
+            + ghost_reward
+            + fruit_bonus
+            + ghost_penalty
+            - 1000 * (3 - game_state.currLives)
+        )
 
-        return max_val + self.evaluationFunction(state) - depth * 100
+    def worker(self):
+        while True:
+            task = self.task_queue.get()
+            if task is None:
+                break
+            branch, depth, state = task
+            score = self.deepSearch(branch, depth, state)
+            with self.lock:
+                if branch not in self.results or self.results[branch] < score:
+                    self.results[branch] = score
+            self.task_queue.task_done()
+
+    def deepSearch(self, branch, depth, state: GameState):
+        if state.currLives == 0 or depth >= self.depth or state.numPellets() == 0:
+            return self.evaluationFunction(state)
+
+        best_score = float("-inf")
+
+        p_loc = state.pacmanLoc
+        directions = [Directions.LEFT, Directions.RIGHT, Directions.DOWN, Directions.UP]
+
+        moves = []
+        for i, (dx, dy) in enumerate([(-1, 0), (1, 0), (0, 1), (0, -1)]):
+            target = (p_loc.col + dx, p_loc.row + dy)
+            if not state.wallAt(target[1], target[0]):
+                sim_state = fast_copy_game_state(state)
+                sim_state.simulateAction(
+                    TICK_ESTIMATE_BY_LEVEL[state.currLevel - 1], directions[i]
+                )
+                eval_score = self.evaluationFunction(sim_state)
+                moves.append((eval_score, sim_state))
+
+        moves.sort(reverse=True, key=lambda x: x[0])  # Prioritize best moves
+
+        for eval_score, sim_state in moves:
+            best_score = max(best_score, self.deepSearch(branch, depth + 1, sim_state))
+
+        return best_score
 
     def tick(self):
         if self.state.gameMode == GameModes.PAUSED:
-            # self.sock.send(b'p')
-            print("game paused")
-            if self.state.numPellets() == 244:
-                self.grid = copy.deepcopy(grid)
-                self.num_powerup = 4
+            print("Paused")
             return
 
-        if self.state:
-            if self.state.pacmanLoc.row == 32:
-                return
-            p_loc = self.state.pacmanLoc
+        self.results.clear()  # Reset results every tick
 
-            if self.state.numPellets() <= self.depth:
-                self.depth = self.state.numPellets() - 1
-            targets = [
-                (p_loc.col, p_loc.row),
-                (p_loc.col - 1, p_loc.row),
-                (p_loc.col + 1, p_loc.row),
-                (p_loc.col, p_loc.row + 1),
-                (p_loc.col, p_loc.row - 1),
-            ]
-            directions = [
-                Directions.NONE,
-                Directions.LEFT,
-                Directions.RIGHT,
-                Directions.DOWN,
-                Directions.UP,
-            ]
-            action_scores = [-float('inf'),-float('inf'),-float('inf'),-float('inf'),-float('inf')]
+        p_loc = self.state.pacmanLoc
+        directions = [Directions.LEFT, Directions.RIGHT, Directions.DOWN, Directions.UP]
 
-            curr_time = time.time()
-
-            for i in range(len(targets)):
-                target_loc = targets[i]
-                if self.state.wallAt(target_loc[1], target_loc[0]):
-                    continue
-                sim_state = GameState()
-                sim_state.update(self.state.serialize(), True)
-                # simulated_state = copy.deepcopy(self.state)
-                alive = sim_state.simulateAction(
+        num_tasks = 0
+        for i, (dx, dy) in enumerate([(-1, 0), (1, 0), (0, 1), (0, -1)]):
+            target = (p_loc.col + dx, p_loc.row + dy)
+            if not self.state.wallAt(target[1], target[0]):
+                sim_state = fast_copy_game_state(self.state)
+                sim_state.simulateAction(
                     TICK_ESTIMATE_BY_LEVEL[self.state.currLevel - 1], directions[i]
                 )
-                action_scores[i] = self.deepSearch(0, sim_state)
-               
+                self.task_queue.put((i, 0, sim_state))
+                num_tasks += 1
 
-            max_action = max(action_scores)
-            max_indices = [
-                index
-                for index in range(len(action_scores))
-                if action_scores[index] == max_action
+        if num_tasks == 0:
+            print("No valid moves, skipping tick")
+            return
+
+        # Ensure worker threads persist across multiple ticks
+        if not hasattr(self, "workers"):
+            self.workers = [
+                threading.Thread(target=self.worker, daemon=True) for _ in range(16)
             ]
-            chosenIndex = max_indices[-1]
+            for w in self.workers:
+                w.start()
 
-            #print(time.time() - curr_time)
+        self.task_queue.join()
 
-            next_loc = targets[chosenIndex]
-            # print(directions[chosenIndex])
-            # print(action_scores)
-            # print(f"{self.state.pacmanLoc.col},{self.state.pacmanLoc.row}")
-            if next_loc != p_loc:
-                self._send_command_message_to_target(directions[chosenIndex])
-                # self._send_socket_command_to_target(p_loc, next_loc)
-                return
-        # self._send_socket_stop_command()
-        self._send_stop_command()
+        if self.results:
+            best_branch = max(self.results, key=self.results.get)
+            self._send_command_message_to_target(directions[best_branch])
 
     async def decisionLoop(self) -> None:
-        # Receive values as long as we have access
-        resetted = False
         while self.state.isConnected():
-            #self._update_game_state()
-			# If the current messages haven't been sent out yet, skip this iteration
-            if len(self.state.writeServerBuf):
-                print("sending action")
-                await asyncio.sleep(0)
-                continue
-            if not resetted:
-                print("reset")
-                # self.sock.send(b'r')
-                resetted = True
-			# Lock the game state
+            await asyncio.sleep(0)
             self.state.lock()
-
-			# Write back to the server
-            self.tick()
-
-			# Unlock the game state
+            await asyncio.to_thread(self.tick)  # Offload tick to a thread
             self.state.unlock()
-
-            # Print that a decision has been made
-
-            # Free up the event loop
             await asyncio.sleep(0.01)
