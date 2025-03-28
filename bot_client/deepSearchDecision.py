@@ -1,17 +1,14 @@
 import threading
 import asyncio
-import random
 import copy
-import time
 from queue import Queue
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
+import yappi
 
 from gameState import *
 from variables import *
 from websockets.sync.client import ClientConnection
-from serverMessage import ServerMessage
-from grid import grid
 
 D_MESSAGES = [b"w", b"a", b"s", b"d", b"."]
 TICK_ESTIMATE_BY_LEVEL = [12, int(12 * 1.5), 12 * 2, int(12 * 2.5), 12 * 3]
@@ -59,10 +56,37 @@ def bfs(grid, start, target, max_dist=float("inf")):
 
     return None
 
+def bfs_dist(gameState:GameState,target):
+    visited = set()
+    start = (gameState.pacmanLoc.row,gameState.pacmanLoc.col)
+    queue = deque([(start, 0)])  # Store (location, distance)
+    visited.add(start)
+
+    while queue:
+        loc, dist = queue.popleft()
+
+        if isinstance(target, tuple):
+            if target == loc:
+                return dist
+        elif (
+            (target == "pellet" and gameState.pelletAt(loc[0], loc[1])) or
+            (target == "power" and gameState.superPelletAt(loc[0], loc[1])) or
+            (target == "fruit" and gameState.fruitAt(loc[0], loc[1]))
+        ):
+            return dist
+
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            new_loc = (loc[0] + dx, loc[1] + dy)
+            if new_loc not in visited and not gameState.wallAt(new_loc[0],new_loc[1]):
+                visited.add(new_loc)
+                queue.append((new_loc, dist + 1))
+
+    return -1  # Return -1 if the target is unreachable
+
 class DeepDecisionModule:
     def __init__(self, state: GameState) -> None:
         self.state = state
-        self.depth = 6
+        self.depth = 8
         self.task_queue = Queue()
         self.results = {}
         self.lock = threading.Lock()
@@ -128,10 +152,8 @@ class DeepDecisionModule:
         pellet_arr = game_state.pelletArr
 
         # Convert pellet positions to numpy array for fast distance calculations
-        pellet_positions = np.argwhere(pellet_arr)
-        if pellet_positions.size > 0:
-            pellet_distances = np.abs(pellet_positions - pacman_pos).sum(axis=1)
-            min_pellet_dist = np.min(pellet_distances)
+        min_pellet_dist = self._find_distance_of_closest_pellet(game_state)
+        if min_pellet_dist >= 0:
             pellet_score = 10 / (min_pellet_dist + 1)
         else:
             pellet_score = 0
@@ -143,7 +165,7 @@ class DeepDecisionModule:
         ghost_states = np.array([g.isFrightened() for g in game_state.ghosts])
 
         if ghost_positions.size > 0:
-            ghost_distances = np.abs(ghost_positions - pacman_pos).sum(axis=1)
+            ghost_distances = np.linalg.norm(ghost_positions - pacman_pos,ord=1,axis=1)
             frightened_ghosts = -500 * ghost_states * (ghost_distances - 5)
             active_ghosts = (1 - ghost_states) * (
                 -500 / (ghost_distances + 1) * (ghost_distances < 5)
@@ -166,19 +188,19 @@ class DeepDecisionModule:
             + ghost_penalty
         )
 
-    def _find_distance_of_closest_pellet(self, target_loc):
-        return len(bfs(self.grid, target_loc, [o])) - 1
+    def _find_distance_of_closest_pellet(self, state):
+        return bfs_dist(state,target="pellet")
 
-    def _find_distance_of_closest_powerup(self, target_loc):
-        return len(bfs(self.grid, target_loc, [O])) - 1
+    def _find_distance_of_closest_powerup(self, state):
+        return bfs_dist(state,target="power")
 
     def  _find_paths_to_closest_ghosts_state(self, state:GameState):
         ghosts = state.ghosts
         state_paths = [(ghost.frightSteps > 2, bfs(self.grid, (state.pacmanLoc.col,30-state.pacmanLoc.row), (ghost.location.col, 30 - ghost.location.row), GHOST_CUTOFF)) for ghost in ghosts]
         return [sp for sp in state_paths if sp[1] is not None]
 
-    def _find_distance_to_cherry(self, target_loc):
-        return len(bfs(self.grid, target_loc, (self.state.fruitLoc.col, 30- self.state.fruitLoc.row))) - 1
+    def _find_distance_to_cherry(self, state):
+        return  bfs_dist(state,target="fruit")
 
     def oldEvaluationFunction(self, game_state: GameState):
         pacman_pos = np.array([game_state.pacmanLoc.row, game_state.pacmanLoc.col])
@@ -305,9 +327,12 @@ class DeepDecisionModule:
             print(directions[best_branch])
 
     async def decisionLoop(self) -> None:
+        #yappi.set_clock_type("cpu") # Use set_clock_type("wall") for wall time
+        #yappi.start()
         while self.state.isConnected():
             await asyncio.sleep(0)
             self.state.lock()
             await asyncio.to_thread(self.tick)  # Offload tick to a thread
             self.state.unlock()
             await asyncio.sleep(0.01)
+        #yappi.get_func_stats().print_all()
