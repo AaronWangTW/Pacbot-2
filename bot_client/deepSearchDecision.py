@@ -149,7 +149,6 @@ class DeepDecisionModule:
     def evaluationFunction(self, game_state: GameState):
         pacman_pos = np.array([game_state.pacmanLoc.row, game_state.pacmanLoc.col])
         score = game_state.currScore
-        pellet_arr = game_state.pelletArr
 
         # Convert pellet positions to numpy array for fast distance calculations
         min_pellet_dist = self._find_distance_of_closest_pellet(game_state)
@@ -206,13 +205,12 @@ class DeepDecisionModule:
         pacman_pos = np.array([game_state.pacmanLoc.row, game_state.pacmanLoc.col])
         pacman_direction = game_state.pacmanLoc.getDirection()
         score = game_state.currScore
-        pellet_arr = game_state.pelletArr
             
         if game_state.wallAt(pacman_pos[0],pacman_pos[1]):
             return float('-inf')
         
         # Calculate pellet distance heuristic
-        if game_state.numPellets() - game_state.numPowerups == 0:  # No more power-ups
+        if game_state.num_pellets - game_state.numPowerups == 0:  # No more power-ups
             dist_to_pellet = self._find_distance_of_closest_powerup(pacman_pos)
         else:
             dist_to_pellet = self._find_distance_of_closest_pellet(pacman_pos)
@@ -255,7 +253,7 @@ class DeepDecisionModule:
             self.task_queue.task_done()
 
     def deepSearch(self, branch, depth, state: GameState):
-        if state.currLives == 0 or depth >= self.depth or state.numPellets() == 0:
+        if state.currLives == 0 or depth >= self.depth or state.num_pellets == 0:
             return self.evaluationFunction(state)
             # return self.oldEvaluationFunction(state)
 
