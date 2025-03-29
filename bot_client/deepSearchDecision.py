@@ -10,8 +10,11 @@ from gameState import *
 from variables import *
 from websockets.sync.client import ClientConnection
 
+# import pyjion
+# pyjion.enable()
+
 D_MESSAGES = [b"w", b"a", b"s", b"d", b"."]
-TICK_ESTIMATE_BY_LEVEL = [12, int(12 * 1.5), 12 * 2, int(12 * 2.5), 12 * 3]
+TICK_ESTIMATE_BY_LEVEL = [15, int(15 * 1.5), 15 * 2, int(15 * 2.5), 15 * 3]
 FOOD_POSITIONS = []
 
 PELLET_WEIGHT = 0.65
@@ -147,44 +150,28 @@ class DeepDecisionModule:
         print("stay in place")
 
     def evaluationFunction(self, game_state: GameState):
-        pacman_pos = np.array([game_state.pacmanLoc.row, game_state.pacmanLoc.col])
-        score = game_state.currScore
+        px, py = game_state.pacmanLoc.row, game_state.pacmanLoc.col
 
         # Convert pellet positions to numpy array for fast distance calculations
         min_pellet_dist = self._find_distance_of_closest_pellet(game_state)
-        if min_pellet_dist >= 0:
-            pellet_score = 10 / (min_pellet_dist + 1)
-        else:
-            pellet_score = 0
+        pellet_score = 10 / (min_pellet_dist + 1) if min_pellet_dist >= 0 else 0
 
         # Ghost avoidance & hunting
-        ghost_positions = np.array(
-            [[g.location.row, g.location.col] for g in game_state.ghosts]
-        )
-        ghost_states = np.array([g.isFrightened() for g in game_state.ghosts])
+        ghost_positions = [(g.location.row, g.location.col) for g in game_state.ghosts]
+        ghost_distances = [abs(px - gx) + abs(py - gy) for gx, gy in ghost_positions]
 
-        if ghost_positions.size > 0:
-            ghost_distances = np.linalg.norm(ghost_positions - pacman_pos,ord=1,axis=1)
-            frightened_ghosts = -500 * ghost_states * (ghost_distances - 5)
-            active_ghosts = (1 - ghost_states) * (
-                -500 / (ghost_distances + 1) * (ghost_distances < 5)
-            )
-
-            ghost_reward = frightened_ghosts.sum()
-            ghost_penalty = active_ghosts.sum()
-        else:
-            ghost_reward = 0
-            ghost_penalty = 0
+        ghost_rewards = sum(-500 * (d - 5) for g, d in zip(game_state.ghosts, ghost_distances) if g.isFrightened())
+        ghost_penalties = sum(-500 / (d + 1) for g, d in zip(game_state.ghosts, ghost_distances) if not g.isFrightened() and d < 5)
 
         # Fruit bonus
-        fruit_bonus = 500 if game_state.fruitAt(*pacman_pos) else 0
+        fruit_bonus = 500 if game_state.fruitAt(px, py) else 0
 
         return (
-            score
+            game_state.currScore
             + pellet_score
-            + ghost_reward
+            + ghost_rewards
             + fruit_bonus
-            + ghost_penalty
+            + ghost_penalties
         )
 
     def _find_distance_of_closest_pellet(self, state):
@@ -272,10 +259,8 @@ class DeepDecisionModule:
                 )
                 if safe:
                     eval_score = self.evaluationFunction(sim_state)
-                else:
-                    eval_score = float("-inf")
+                    moves.append((eval_score, sim_state))
                 #eval_score = self.oldEvaluationFunction(sim_state)
-                moves.append((eval_score, sim_state))
 
         moves.sort(reverse=True, key=lambda x: x[0])  # Prioritize best moves
 
@@ -325,12 +310,12 @@ class DeepDecisionModule:
             print(directions[best_branch])
 
     async def decisionLoop(self) -> None:
-        #yappi.set_clock_type("cpu") # Use set_clock_type("wall") for wall time
-        #yappi.start()
+        # yappi.set_clock_type("cpu") # Use set_clock_type("wall") for wall time
+        # yappi.start()
         while self.state.isConnected():
             await asyncio.sleep(0)
             self.state.lock()
             await asyncio.to_thread(self.tick)  # Offload tick to a thread
             self.state.unlock()
             await asyncio.sleep(0.01)
-        #yappi.get_func_stats().print_all()
+        # yappi.get_func_stats().print_all()
