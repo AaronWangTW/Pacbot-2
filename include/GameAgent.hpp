@@ -70,6 +70,10 @@ public:
    * @param gameState The game state to copy
    */
   void update(const GameState &gameState);
-  int simulateAction(int numTicks, Directions pacmanDirection, const GameState &gameState);
   GameAgent& operator=(const GameAgent& other);
+
+  int simulateAction(int numTicks, Directions pacmanDirection);
+  void collectFruit(int row, int col);
+  void collectPellet(int row, int col);
+  int safetyCheck();
 };

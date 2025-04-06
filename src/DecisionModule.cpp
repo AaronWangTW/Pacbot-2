@@ -24,7 +24,7 @@ int numberOfSetBits(uint32_t i) {
                    // when int is wider than uint32_t)
 }
 
-int numPellets(std::array<uint32_t, 31>& pelletArr) {
+int numPellets(std::array<uint32_t, 31> pelletArr) {
   int sum = 0;
   for (unsigned int i = 0; i < 31; i++) {
     sum += numberOfSetBits(pelletArr[i]);
