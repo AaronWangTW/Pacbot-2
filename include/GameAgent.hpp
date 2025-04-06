@@ -39,7 +39,14 @@ private:
 
 public:
   GameState gameState;
-  GameAgent(const GameAgent &other);
+  GameAgent(const GameAgent &other)
+      : gameState(other.gameState),
+        deltas(other.deltas),
+        versions(other.versions),
+        ghostAgents{new RedGhostAgent(),
+                    new PinkGhostAgent(),
+                    new CyanGhostAgent(),
+                    new OrangeGhostAgent()} {};
   GameAgent()
       : ghostAgents{new RedGhostAgent(),
                     new PinkGhostAgent(),
@@ -63,5 +70,6 @@ public:
    * @param gameState The game state to copy
    */
   void update(const GameState &gameState);
+  int simulateAction(int numTicks, Directions pacmanDirection, const GameState &gameState);
   GameAgent& operator=(const GameAgent& other);
 };

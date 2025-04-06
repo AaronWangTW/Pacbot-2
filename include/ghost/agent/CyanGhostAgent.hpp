@@ -7,4 +7,5 @@ struct CyanGhostAgent : public IGhostAgent {
   std::pair<int, int> getScatterTarget() const override;
 
   IGhostAgent* clone() const override;
+  ~CyanGhostAgent() override {};
 };

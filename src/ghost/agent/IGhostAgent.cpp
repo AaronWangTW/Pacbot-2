@@ -74,3 +74,5 @@ IDelta* IGhostAgent::move(GameState &state, Ghost &ghost) {
   return new GhostMoveDelta(this, newLocation ,ghost.location);
 
 }
+
+IGhostAgent::~IGhostAgent() = default;

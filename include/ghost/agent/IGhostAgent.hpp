@@ -17,7 +17,7 @@ private:
   /**
    * @brief Predicts the Scatter target of the ghost
    */
-  virtual std::pair<int, int> getScatterTarget() const;
+  virtual std::pair<int, int> getScatterTarget() const = 0;
 
 public:
   /**
@@ -29,7 +29,7 @@ public:
   IDelta* guessMove(const GameState &gameState,
                                     const Ghost &ghost);
 
-  virtual ~IGhostAgent() = default;
+  // virtual ~IGhostAgent() = default;
   /**
    * @brief Advances this ghost to the next position
    *
@@ -41,4 +41,5 @@ public:
   Directions plannedDirection;
   Location currentLocation;
   virtual IGhostAgent* clone() const = 0;
+  virtual ~IGhostAgent();
 };
