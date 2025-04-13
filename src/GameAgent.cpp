@@ -112,7 +112,7 @@ int GameAgent::simulateAction(int numTicks, Directions pacmanDirection) {
   GameState* gameState = &(this->gameState);
   for (int tick = 0; tick <= numTicks; tick++) {
     std::lock_guard<std::mutex> lock(_mutex);
-    if ((gameState->currTicks + tick) % gameState->updatePeriod) {
+    if (((gameState->currTicks + tick) % gameState->updatePeriod) != 0) {
       continue;
     }
     if (tick % searchDepth == 0) {
@@ -127,7 +127,7 @@ int GameAgent::simulateAction(int numTicks, Directions pacmanDirection) {
         perform(ghostAgent->move(*(gameState), ghost));
       }
 
-      if (safetyCheck()){
+      if (!safetyCheck()){
         return 0;
       }
 
@@ -146,9 +146,10 @@ int GameAgent::simulateAction(int numTicks, Directions pacmanDirection) {
           gameState->modeDuration = 60;
         }
 
-        // TODO: reverse planned ghost directions
+        // reverse planned ghost directions
         for (int i = 0; i < ghostAgents.size(); i++) {
-          continue;
+          ghostAgents[i]->plannedDirection = REVERSE_DIRECTIONS.find(
+            ghostAgents[i]->plannedDirection)->second;
         }
       }
     }
@@ -170,7 +171,7 @@ int GameAgent::simulateAction(int numTicks, Directions pacmanDirection) {
     return 1;
   }
 
-  if (safetyCheck()){
+  if (!safetyCheck()){
     return 0;
   }
 
@@ -202,13 +203,20 @@ void GameAgent::collectPellet(int row, int col){
   GameState* gameState = &(this->gameState);
 
   // Return if no pellets to collect
-  if (gameState->pelletArr[row] & (1 << col) == 0) {
+  if (!(((gameState->pelletArr[row]) >> col) & 1)) {
     return;
   }
+
+  bool superPellet = superPelletAt(row, col);
   
   gameState->pelletArr[row] &= ~(1 << col);
 
-  gameState->currScore += 10; // TODO: change with inclusion of superpellet information
+  if (superPellet){
+    gameState->currScore += 50;
+  }else{
+    gameState->currScore += 10;
+  }
+
   int numPellets = noPellets(gameState->pelletArr);
   if (numPellets == 174 || numPellets == 74){
     gameState->fruitSteps = 30;
@@ -220,9 +228,19 @@ void GameAgent::collectPellet(int row, int col){
     if (gameState->gameMode == GameModes::SCATTER) {
       gameState->gameMode = GameModes::CHASE;
     } 
-    
-    // TODO: include superpellet
   }
+
+  if (superPellet){
+    for (int i = 0; i < ghostAgents.size(); i++){
+      ghostAgents[i]->plannedDirection = REVERSE_DIRECTIONS.find(
+        ghostAgents[i]->plannedDirection)->second;
+    }
+  }
+}
+
+int GameAgent::superPelletAt(int row, int col){
+  GameState* gameState = &(this->gameState);
+  return (((gameState->pelletArr[row]) >> col) & 1) && ((row == 3) || (row == 23)) && ((col == 1) || (col == 26));
 }
 
 int GameAgent::safetyCheck(){

@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <unordered_map>
 
 enum Directions { UP, LEFT, DOWN, RIGHT, NONE };
 
@@ -10,9 +11,13 @@ const static std::array<Directions, 4> DIRECTIONS_LIST{
 const static std::array<Directions, 5> ALL_DIRECTIONS{
     Directions::UP, Directions::LEFT, Directions::DOWN, Directions::RIGHT, Directions::NONE};
 
-const static std::array<int, 5> reversedDirections{
-    Directions::DOWN, Directions::RIGHT, Directions::UP, Directions::LEFT,
-    Directions::NONE};
+const static std::unordered_map<Directions, Directions> REVERSE_DIRECTIONS{
+    {Directions::UP, Directions::DOWN},
+    {Directions::LEFT, Directions::RIGHT},
+    {Directions::DOWN, Directions::UP},
+    {Directions::RIGHT, Directions::LEFT},
+    {Directions::NONE, Directions::NONE}
+};
 
 class Location {
 private:
