@@ -92,47 +92,53 @@ int GameAgent::simulateAction(int numTicks, Directions pacmanDirection) {
   // update Gamestate
   int searchDepth = this->_depthInterval;
   GameState* gameState = &(this->gameState);
-  for (int tick = 0; tick <= numTicks; tick++) {
-    if (((gameState->currTicks + tick) % gameState->updatePeriod) != 0) {
-      continue;
+
+  for (int i = 0; i < ghostAgents.size(); i++) {
+    if (ghostAgents[i]->plannedDirection == Directions::NONE) {
+      ghostAgents[i]->plannedDirection = ghostAgents[i]->guessMove(*gameState, gameState->ghosts[i]);
     }
-    if (tick % searchDepth == 0) {
-      // update game state
-      update(*gameState);
-    } else {
-      // Generate the deltas associated with actions
+  }
+
+  int tick = 1;
+  
+  while (tick <= numTicks){
+    int residual = (gameState->currTicks + tick) % gameState->updatePeriod;
+    if (residual != 0) {
+      tick += gameState->updatePeriod - residual;
+      continue;
+    }else{
+      tick += gameState->updatePeriod;
+    }
+
+    for (int i = 0; i < ghostAgents.size(); i++) {
+      IGhostAgent *ghostAgent = ghostAgents[i];
+      Ghost &ghost = gameState->ghosts[i];
+      // update ghosts
+      ghostAgent->move(*gameState, ghost);
+    }
+
+    if (!safetyCheck()){
+      return 0;
+    }
+
+    if (gameState->modeSteps > 0){
+      gameState->modeSteps--;
+
+    } else if (gameState->modeSteps == 0) {
+      // Scatter -> Chase
+      if (gameState->gameMode == GameModes::SCATTER) {
+        gameState->gameMode = GameModes::CHASE;
+        gameState->modeSteps = 180;
+        gameState->modeDuration = 180;
+      // Chase -> Scatter
+      } else if (gameState->gameMode == GameModes::CHASE) {
+        gameState->gameMode = GameModes::SCATTER;
+        gameState->modeSteps = 60;
+        gameState->modeDuration = 60;
+      }
+
       for (int i = 0; i < ghostAgents.size(); i++) {
-        IGhostAgent *ghostAgent = ghostAgents[i];
-        Ghost &ghost = gameState->ghosts[i];
-        // update ghosts
-        ghostAgent->move(*gameState, ghost);
-      }
-
-      if (!safetyCheck()){
-        return 0;
-      }
-
-      if (gameState->modeSteps > 0){
-        gameState->modeSteps--;
-
-      } else if (gameState->modeSteps == 0) {
-        // Scatter -> Chase
-        if (gameState->gameMode == GameModes::SCATTER) {
-          gameState->gameMode = GameModes::CHASE;
-          gameState->modeSteps = 180;
-          gameState->modeDuration = 180;
-        // Chase -> Scatter
-        } else if (gameState->gameMode == GameModes::CHASE) {
-          gameState->gameMode = GameModes::SCATTER;
-          gameState->modeSteps = 60;
-          gameState->modeDuration = 60;
-        }
-
-        // reverse planned ghost directions
-        for (int i = 0; i < ghostAgents.size(); i++) {
-          ghostAgents[i]->plannedDirection = REVERSED_DIRECTIONS.find(
-              ghostAgents[i]->plannedDirection)->second;
-        }
+        ghostAgents[i]->plannedDirection = ghostAgents[i]->guessMove(*gameState, gameState->ghosts[i]);
       }
     }
   }
