@@ -48,4 +48,10 @@ public:
    */
   void update(const GameState &gameState);
   GameAgent& operator=(const GameAgent& other);
+
+  int simulateAction(int numTicks, Directions pacmanDirection);
+  void collectFruit(int row, int col);
+  void collectPellet(int row, int col);
+  int superPelletAt(int row, int col);
+  int safetyCheck();
 };
